@@ -1,0 +1,8 @@
+[package]
+name = "chord-arp-rust"
+version = "0.1.0"
+authors = ["Michael Sperone <mike@mikesperone.com>"]
+edition = "2018"
+
+[dependencies]
+midir = "0.5.0"
