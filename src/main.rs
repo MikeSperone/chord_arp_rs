@@ -1,9 +1,23 @@
 extern crate midir;
+extern crate rosc;
 
+// use std::{env};
 use std::io::{stdin, stdout, Write};
 use std::error::Error;
 
+// For MIDI
 use midir::{MidiInput, MidiOutput, Ignore};
+
+// For OSC
+// use std::{env};
+use std::net::{UdpSocket, SocketAddrV4};
+use std::str::FromStr;
+use rosc::{OscPacket, OscMessage, OscType};
+use rosc::encoder;
+
+// For CLI
+extern crate term;
+use std::io::prelude::*;
 
 // #[derive(Eq, Copy, Clone)]
 // struct HeldKeys {
@@ -23,6 +37,12 @@ use midir::{MidiInput, MidiOutput, Ignore};
     // }
 // }
 
+// struct OSC_Values {
+//     host_addr: string "127.0.0.1",
+//     to_addr: string "127.0.0.1",
+//     sock: UdpSocket::bind(host_addr).unwrap(),
+// }
+
 fn main() {
     println!("Running MIDI forwarding script");
     match run() {
@@ -31,7 +51,20 @@ fn main() {
     }
 }
 
+// this is broke, how to fix??
+// fn debug(msg: Any) {
+//     let args: Vec<String> = env::args().collect();
+//     if args.len() > 0 && args.contains("debug") {
+//         println!("{:?}", msg);
+//     }
+// }
+
 fn run() -> Result<(), Box<Error>> {
+
+    let mut t = term::stdout().unwrap();
+    // ------------------------------
+    //  1. Get MIDI IO
+    // ------------------------------
     let mut input = String::new();
 
     let mut midi_in = MidiInput::new("midir forwarding input")?;
@@ -65,9 +98,17 @@ fn run() -> Result<(), Box<Error>> {
     println!("\n  Sending MIDI out on port {:?}", out_port_name);
     println!("\n------------------------------------------------");
 
+    // ------------------------------
+    //  2. Forward MIDI
+    // ------------------------------
     let mut conn_out = midi_out.connect(out_port, "midir-forward")?;
 
     let mut pc_bucket = Vec::new();
+    let from_address = "127.0.0.1:57000";
+    let to_address = "127.0.0.1:57001";
+    let my_host_name = SocketAddrV4::from_str(&from_address).unwrap();
+    let destination_host_name = SocketAddrV4::from_str(&to_address).unwrap();
+    let sock = UdpSocket::bind(my_host_name).unwrap();
 
     let _conn_in = midi_in.connect(in_port, "midir-forward", move |_stamp, message, _| {
         conn_out.send(message).unwrap_or_else(|_| println!("Error when forwarding message ..."));
@@ -76,7 +117,6 @@ fn run() -> Result<(), Box<Error>> {
         let pitch_class = pitch % 12;
 
         if velocity == 0 {
-            println!("Remove {}", pitch_class);
             if pc_bucket.contains(&pitch_class) {
                 let found_index = pc_bucket.iter().position(|&r| r == pitch_class).unwrap();
                 pc_bucket.swap_remove(found_index);
@@ -84,7 +124,20 @@ fn run() -> Result<(), Box<Error>> {
         } else {
             pc_bucket.push(pitch_class);
         }
-        println!("keys pressed: {:?}", pc_bucket);
+
+        // ------------------------------
+        //  3. Send Via UDP
+        // ------------------------------
+        let msg_buf = encoder::encode(&OscPacket::Message(OscMessage {
+            addr: "/pc".to_string(),
+            args: Some(vec![OscType::Blob(pc_bucket.to_vec())]),
+        })).unwrap();
+
+        sock.send_to(&msg_buf, destination_host_name).unwrap();
+
+        t.cursor_up().unwrap();
+        t.delete_line().unwrap();
+        writeln!(t, "{:?}", &pc_bucket).unwrap();
         // println!("pitch: {}, (pc: {}), velocity: {}", pitch, pitch_class, velocity);
     }, ())?;
 
