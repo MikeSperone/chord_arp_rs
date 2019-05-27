@@ -149,10 +149,10 @@ fn run() -> Result<(), Box<Error>> {
         }
         let midi_event = message[0];
         let pitch = message[1];
-        // let velocity = message[2];
+        let velocity = message[2];
         let pitch_class = pitch % 12;
 
-        if midi_event > 127 && midi_event < 144 {
+        if (midi_event > 127 && midi_event < 144) || velocity == 0 {
             // note off events
             hk.remove_note(pitch_class);
         } else if midi_event > 143 && midi_event < 160 {
