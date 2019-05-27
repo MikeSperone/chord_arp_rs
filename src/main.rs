@@ -73,7 +73,7 @@ fn run() -> Result<(), Box<Error>> {
     let mut input = String::new();
 
     let mut midi_in = MidiInput::new("midir forwarding input")?;
-    midi_in.ignore(Ignore::None);
+    midi_in.ignore(Ignore::All);
     let midi_out = MidiOutput::new("midir forwarding output")?;
 
 
@@ -147,13 +147,16 @@ fn run() -> Result<(), Box<Error>> {
                 .send(message)
                 .unwrap_or_else(|_| println!("Error when forwarding message ..."));
         }
+        let midi_event = message[0];
         let pitch = message[1];
-        let velocity = message[2];
+        // let velocity = message[2];
         let pitch_class = pitch % 12;
 
-        if velocity == 0 {
+        if midi_event > 127 && midi_event < 144 {
+            // note off events
             hk.remove_note(pitch_class);
-        } else {
+        } else if midi_event > 143 && midi_event < 160 {
+            // note on events
             hk.add_note(pitch_class);
         }
 
