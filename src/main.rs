@@ -94,7 +94,7 @@ fn run() -> Result<(), Box<Error>> {
     let in_port_name = midi_in.port_name(in_port)?;
 
     // Output
-    print!("Would you like to forward MIDI to another destination? [Y|y]");
+    print!("Would you like to forward MIDI to another destination? [Y|n]");
     stdout().flush()?;
     input.clear();
     stdin().read_line(&mut input)?;
